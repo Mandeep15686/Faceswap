@@ -1,0 +1,116 @@
+# FaceSwap Pipeline v2 — Default Configuration
+# ──────────────────────────────────────────────
+
+device: "cuda"          # cuda | cpu | mps
+dtype: "float16"        # float16 | float32 (float32 for debugging)
+seed: 42
+
+# ── Stage 02: Face Detection ──────────────────────────────────────────────────
+detection:
+  model: "retinaface_resnet50"   # retinaface_resnet50 | retinaface_mobilenet
+  confidence_threshold: 0.90     # Raised from 0.85 in v1
+  nms_threshold: 0.40
+  max_faces: 1                   # Per-frame face limit (set >1 for group swap)
+
+# ── Stage 03: Face Tracking ───────────────────────────────────────────────────
+tracking:
+  kalman_process_noise: 1e-3
+  kalman_measure_noise: 1e-1
+  reid_distance_threshold: 0.35  # Cosine distance for re-identification
+  max_missing_frames: 10         # Drop track after N consecutive misses
+
+# ── Quality Gate ─────────────────────────────────────────────────────────────
+quality_gate:
+  max_yaw_deg: 40.0
+  max_pitch_deg: 40.0
+  min_blur_score: 0.15           # Laplacian variance, normalised 0–1
+  min_track_age: 3               # Frames before track is trusted
+  min_confidence: 0.90
+
+# ── Stage 04: Geometry ────────────────────────────────────────────────────────
+geometry:
+  model: "3ddfa_v2"
+  num_landmarks: 68
+
+# ── Stage 05: Landmark Smoothing ──────────────────────────────────────────────
+smoothing:
+  min_cutoff: 0.004              # One-Euro filter — lower = smoother, more lag
+  beta: 0.7                      # Higher = more responsive to fast motion
+  d_cutoff: 1.0
+
+# ── Stage 06: Alignment ───────────────────────────────────────────────────────
+alignment:
+  crop_size: 256                 # Internal crop resolution (px)
+  anchor_indices: [36, 45, 30, 48, 54]  # 5-point anchors from 68-pt set
+
+# ── Stage 07: Identity Embedding ─────────────────────────────────────────────
+identity:
+  model: "arcface_iresnet100"
+  embedding_dim: 512
+  aggregation: "mean"            # mean | weighted_by_frontality
+
+# ── Stage 08: Face Swap (DreamID) ────────────────────────────────────────────
+swap:
+  model: "dreamid_distilled"
+  ddim_steps: 4                  # 4 = realtime; 50 = offline max quality
+  guidance_scale: 1.0
+  temporal_weight: 0.30          # Prev-frame feedback strength (0 = disabled)
+  noise_strength: 0.0            # Extra noise injection (0 = clean)
+
+# ── Stage 09: Face Parsing ────────────────────────────────────────────────────
+parsing:
+  model: "bisenet_resnet18"
+  num_classes: 19
+  classes:                       # Class index → semantic label
+    0: background
+    1: skin
+    2: l_brow
+    3: r_brow
+    4: l_eye
+    5: r_eye
+    6: eye_glass
+    7: l_ear
+    8: r_ear
+    9: earring
+    10: nose
+    11: mouth
+    12: u_lip
+    13: l_lip
+    14: neck
+    15: neck_l
+    16: cloth
+    17: hair
+    18: hat
+
+# ── Stage 10: Occlusion Detection ─────────────────────────────────────────────
+occlusion:
+  depth_model: "midas_small"     # MiDaS depth estimator
+  delta_threshold: 0.20          # Normalised depth delta to flag occlusion
+  dilation_kernel: 7             # Pixels to dilate occlusion mask
+
+# ── Stage 11: Enhancement ────────────────────────────────────────────────────
+enhancement:
+  model: "codeformer"
+  fidelity_weight: 0.70          # 0.0 = max quality; 1.0 = max fidelity
+  upscale: 1                     # 1 = no upscale; 2 = 2× SR
+
+# ── Stage 12: Color Transfer ─────────────────────────────────────────────────
+color_transfer:
+  method: "lab_histogram"        # lab_histogram | reinhard
+  region_aware: true             # Apply per BiSeNet region
+  regions: ["skin", "hair", "l_brow", "r_brow"]
+  clip_percentile: 1.0           # Histogram clip %
+
+# ── Stage 13: Blending ────────────────────────────────────────────────────────
+blending:
+  laplacian_levels: 6
+  poisson_solver: "direct"       # direct | cg (conjugate gradient, large imgs)
+  feather_radius: 8              # Mask feathering before blend (px)
+
+# ── Stage 14: Output ──────────────────────────────────────────────────────────
+output:
+  codec: "h264"                  # h264 | hevc | vp9
+  fps: 24
+  crf: 18                        # Quality factor (lower = better, larger file)
+  audio: true                    # Mux original audio
+  preserve_metadata: true

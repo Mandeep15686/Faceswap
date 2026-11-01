@@ -1,0 +1,14 @@
+# FaceSwap Pipeline v2 — High Quality (Offline) Configuration
+# Inherits defaults; only overrides listed here.
+
+swap:
+  ddim_steps: 50          # Full DreamID quality (~900ms/frame)
+  temporal_weight: 0.20
+
+enhancement:
+  fidelity_weight: 0.50   # More enhancement, less fidelity preservation
+  upscale: 2              # 2× super-resolution on face crop
+
+output:
+  codec: hevc
+  crf: 15

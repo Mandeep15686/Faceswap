@@ -1,0 +1,29 @@
+# Python bytecode and tooling caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments
+.venv/
+venv/
+venv*/
+env/
+ENV/
+
+# Generated artifacts and downloaded model weights
+dataset/output/
+models/*.pth
+models/*.pt
+models/3DDFA_V2/
+models/dreamid_weights/
+
+# Local configuration, logs, and OS/editor metadata
+.env
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
